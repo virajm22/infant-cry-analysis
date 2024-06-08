@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Cry Classifier</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 10px;
+        }
+        .result {
+            margin-top: 20px;
+            font-size: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Audio Cry Classifier</h1>
+    <button id="recordButton">Record</button>
+    <button id="stopButton" disabled>Stop</button>
+    <div class="result" id="result"></div>
+
+    <script>
+        let chunks = [];
+        let recorder;
+        const recordButton = document.getElementById('recordButton');
+        const stopButton = document.getElementById('stopButton');
+        const resultDiv = document.getElementById('result');
+
+        recordButton.addEventListener('click', async () => {
+            chunks = [];
+            let stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            recorder = new MediaRecorder(stream);
+
+            recorder.ondataavailable = e => {
+                chunks.push(e.data);
+            };
+
+            recorder.onstop = async () => {
+                let blob = new Blob(chunks, { 'type': 'audio/wav; codecs=MS_PCM' });
+                let formData = new FormData();
+                formData.append('audio', blob, 'audio.wav');
+
+                let response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                let result = await response.json();
+                resultDiv.textContent = `Predicted class: ${result.class}`;
+            };
+
+            recorder.start();
+            recordButton.disabled = true;
+            stopButton.disabled = false;
+        });
+
+        stopButton.addEventListener('click', () => {
+            recorder.stop();
+            recordButton.disabled = false;
+            stopButton.disabled = true;
+        });
+    </script>
+</body>
+</html>
