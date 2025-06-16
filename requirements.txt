@@ -1,5 +1,0 @@
-Flask
-librosa
-noisereduce
-numpy
-scikit-learn
