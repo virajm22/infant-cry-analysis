@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Baby Cry Classification</title>
+</head>
+<body>
+    <h1>Baby Cry Classifier</h1>
+    <button id="recordBtn">🎙️ Record Audio</button>
+    <p id="status"></p>
+    <h3 id="result"></h3>
+    <ul id="probabilities"></ul>
+
+    <script>
+        const recordBtn = document.getElementById('recordBtn');
+        const status = document.getElementById('status');
+        const result = document.getElementById('result');
+        const probabilitiesList = document.getElementById('probabilities');
+
+        let mediaRecorder, audioChunks = [];
+
+        recordBtn.onclick = async () => {
+            audioChunks = [];
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+
+            mediaRecorder.ondataavailable = e => {
+                audioChunks.push(e.data);
+            };
+
+            mediaRecorder.onstop = async () => {
+                status.innerText = "Recording stopped. Sending to server...";
+                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                const formData = new FormData();
+                formData.append('audio_data', audioBlob, 'recording.wav');
+
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                result.innerText = `Prediction: ${data.prediction}`;
+                probabilitiesList.innerHTML = '';
+                Object.entries(data.probabilities).forEach(([label, prob]) => {
+                    const li = document.createElement('li');
+                    li.innerText = `${label}: ${prob}%`;
+                    probabilitiesList.appendChild(li);
+                });
+
+                status.innerText = "Prediction done.";
+            };
+
+            mediaRecorder.start();
+            status.innerText = "Recording... Speak now!";
+
+            setTimeout(() => {
+                mediaRecorder.stop();
+                stream.getTracks().forEach(track => track.stop());
+            }, 7000);
+        };
+    </script>
+</body>
+</html>
